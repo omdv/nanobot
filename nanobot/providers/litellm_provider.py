@@ -186,6 +186,7 @@ class LiteLLMProvider(LLMProvider):
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens,
+                "cost": getattr(response, "_hidden_params", {}).get("response_cost", 0),
             }
         
         reasoning_content = getattr(message, "reasoning_content", None)

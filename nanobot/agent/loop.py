@@ -197,6 +197,14 @@ class AgentLoop:
         final_content = None
         tools_used: list[str] = []
         
+        # Track usage for this request
+        request_usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        }
+
         while iteration < self.max_iterations:
             iteration += 1
             
@@ -206,7 +214,14 @@ class AgentLoop:
                 tools=self.tools.get_definitions(),
                 model=self.model
             )
-            
+
+            # Accumulate usage
+            if response.usage:
+                request_usage["prompt_tokens"] += response.usage.get("prompt_tokens", 0)
+                request_usage["completion_tokens"] += response.usage.get("completion_tokens", 0)
+                request_usage["total_tokens"] += response.usage.get("total_tokens", 0)
+                request_usage["cost"] += response.usage.get("cost", 0.0)
+
             # Handle tool calls
             if response.has_tool_calls:
                 # Add assistant message with tool calls
@@ -253,6 +268,19 @@ class AgentLoop:
         session.add_message("user", msg.content)
         session.add_message("assistant", final_content,
                             tools_used=tools_used if tools_used else None)
+
+        # Accumulate usage in session metadata
+        session.metadata.setdefault("usage", {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        })
+        session.metadata["usage"]["prompt_tokens"] += request_usage["prompt_tokens"]
+        session.metadata["usage"]["completion_tokens"] += request_usage["completion_tokens"]
+        session.metadata["usage"]["total_tokens"] += request_usage["total_tokens"]
+        session.metadata["usage"]["cost"] += request_usage["cost"]
+
         self.sessions.save(session)
         
         return OutboundMessage(
@@ -309,7 +337,15 @@ class AgentLoop:
         # Agent loop (limited for announce handling)
         iteration = 0
         final_content = None
-        
+
+        # Track usage for this request
+        request_usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        }
+
         while iteration < self.max_iterations:
             iteration += 1
             
@@ -318,7 +354,14 @@ class AgentLoop:
                 tools=self.tools.get_definitions(),
                 model=self.model
             )
-            
+
+            # Accumulate usage
+            if response.usage:
+                request_usage["prompt_tokens"] += response.usage.get("prompt_tokens", 0)
+                request_usage["completion_tokens"] += response.usage.get("completion_tokens", 0)
+                request_usage["total_tokens"] += response.usage.get("total_tokens", 0)
+                request_usage["cost"] += response.usage.get("cost", 0.0)
+
             if response.has_tool_calls:
                 tool_call_dicts = [
                     {
@@ -355,6 +398,19 @@ class AgentLoop:
         # Save to session (mark as system message in history)
         session.add_message("user", f"[System: {msg.sender_id}] {msg.content}")
         session.add_message("assistant", final_content)
+
+        # Accumulate usage in session metadata
+        session.metadata.setdefault("usage", {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        })
+        session.metadata["usage"]["prompt_tokens"] += request_usage["prompt_tokens"]
+        session.metadata["usage"]["completion_tokens"] += request_usage["completion_tokens"]
+        session.metadata["usage"]["total_tokens"] += request_usage["total_tokens"]
+        session.metadata["usage"]["cost"] += request_usage["cost"]
+
         self.sessions.save(session)
         
         return OutboundMessage(

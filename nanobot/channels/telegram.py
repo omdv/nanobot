@@ -96,6 +96,7 @@ class TelegramChannel(BaseChannel):
     BOT_COMMANDS = [
         BotCommand("start", "Start the bot"),
         BotCommand("reset", "Reset conversation history"),
+        BotCommand("status", "Show session status"),
         BotCommand("help", "Show available commands"),
     ]
     
@@ -133,6 +134,7 @@ class TelegramChannel(BaseChannel):
         # Add command handlers
         self._app.add_handler(CommandHandler("start", self._on_start))
         self._app.add_handler(CommandHandler("reset", self._on_reset))
+        self._app.add_handler(CommandHandler("status", self._on_status))
         self._app.add_handler(CommandHandler("help", self._on_help))
         
         # Add message handler for text, photos, voice, documents
@@ -197,6 +199,33 @@ class TelegramChannel(BaseChannel):
         try:
             # chat_id should be the Telegram chat ID (integer)
             chat_id = int(msg.chat_id)
+            # Send media files first if present
+            if msg.media:
+                from pathlib import Path
+                for media_path in msg.media:
+                    path = Path(media_path)
+                    if not path.exists():
+                        logger.warning(f"Media file not found: {media_path}")
+                        continue
+                    try:
+                        ext = path.suffix.lower()
+                        with open(path, "rb") as f:
+                            if ext == ".gif":
+                                await self._app.bot.send_animation(chat_id=chat_id, animation=f)
+                            elif ext in (".jpg", ".jpeg", ".png", ".webp"):
+                                await self._app.bot.send_photo(chat_id=chat_id, photo=f)
+                            elif ext in (".mp4", ".mov", ".avi", ".mkv"):
+                                await self._app.bot.send_video(chat_id=chat_id, video=f)
+                            elif ext in (".mp3", ".ogg", ".wav", ".m4a"):
+                                await self._app.bot.send_audio(chat_id=chat_id, audio=f)
+                            else:
+                                await self._app.bot.send_document(chat_id=chat_id, document=f)
+                        logger.debug(f"Sent media: {path.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to send media {media_path}: {e}")
+            # Send text content if present
+            if not msg.content:
+                return
             # Convert markdown to Telegram HTML
             html_content = _markdown_to_telegram_html(msg.content)
             await self._app.bot.send_message(
@@ -249,7 +278,39 @@ class TelegramChannel(BaseChannel):
         
         logger.info(f"Session reset for {session_key} (cleared {msg_count} messages)")
         await update.message.reply_text("🔄 Conversation history cleared. Let's start fresh!")
-    
+
+    async def _on_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /status command — show session statistics."""
+        if not update.message or not update.effective_user:
+            return
+
+        chat_id = str(update.message.chat_id)
+        session_key = f"{self.name}:{chat_id}"
+
+        if self.session_manager is None:
+            logger.warning("/status called but session_manager is not available")
+            await update.message.reply_text("⚠️ Session management is not available.")
+            return
+
+        session = self.session_manager.get_or_create(session_key)
+        msg_count = len(session.messages)
+        usage = session.metadata.get("usage", {})
+
+        total_tokens = usage.get("total_tokens", 0)
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        cost = usage.get("cost", 0.0)
+
+        status_text = (
+            "📊 <b>Session Status</b>\n\n"
+            f"Messages: {msg_count}\n"
+            f"Tokens: {total_tokens:,} (in: {prompt_tokens:,}, out: {completion_tokens:,})\n"
+            f"Cost: ${cost:.4f}\n"
+            f"Created: {session.created_at.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Updated: {session.updated_at.strftime('%Y-%m-%d %H:%M')}"
+        )
+        await update.message.reply_text(status_text, parse_mode="HTML")
+
     async def _on_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /help command — show available commands."""
         if not update.message:
@@ -259,6 +320,7 @@ class TelegramChannel(BaseChannel):
             "🐈 <b>nanobot commands</b>\n\n"
             "/start — Start the bot\n"
             "/reset — Reset conversation history\n"
+            "/status — Show session status\n"
             "/help — Show this help message\n\n"
             "Just send me a text message to chat!"
         )

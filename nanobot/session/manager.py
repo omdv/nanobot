@@ -53,8 +53,9 @@ class Session:
         return [{"role": m["role"], "content": m["content"]} for m in recent]
     
     def clear(self) -> None:
-        """Clear all messages in the session."""
+        """Clear all messages and reset usage in the session."""
         self.messages = []
+        self.metadata = {}
         self.updated_at = datetime.now()
 
 
