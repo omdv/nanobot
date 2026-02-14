@@ -26,7 +26,8 @@ endef
 export SERVICE_FILE
 
 update:
-	git pull origin development
+	git fetch origin
+	git reset --hard origin/development
 	uv pip install -e .
 	ln -sf /home/om/nanobot/.venv/bin/nanobot /home/om/.local/bin/nanobot
 
