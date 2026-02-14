@@ -50,8 +50,9 @@ class AgentLoop:
         cron_service: "CronService | None" = None,
         restrict_to_workspace: bool = False,
         session_manager: SessionManager | None = None,
+        thinking_config: "ThinkingConfig | None" = None,
     ):
-        from nanobot.config.schema import ExecToolConfig
+        from nanobot.config.schema import ExecToolConfig, ThinkingConfig
         from nanobot.cron.service import CronService
         self.bus = bus
         self.provider = provider
@@ -65,6 +66,7 @@ class AgentLoop:
         self.exec_config = exec_config or ExecToolConfig()
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
+        self.thinking_config = thinking_config or ThinkingConfig()
 
         self.context = ContextBuilder(workspace)
         self.sessions = session_manager or SessionManager(workspace)
@@ -181,9 +183,20 @@ class AgentLoop:
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
-                messages.append({"role": "user", "content": "Reflect on the results and decide next steps."})
+                if self.thinking_config.enabled:
+                    messages.append({"role": "user", "content": "Reflect on the results inside <thinking> tags. Do not output any reflection text outside these tags. After the tags, provide your final response to the user if ready."})
+                else:
+                    messages.append({"role": "user", "content": "Reflect on the results and decide next steps."})
             else:
                 final_content = response.content
+                # Process thinking tags
+                if final_content and "<thinking>" in final_content:
+                    import re
+                    match = re.search(r'<thinking>(.*?)</thinking>', final_content, flags=re.DOTALL)
+                    if match:
+                        logger.info(f"Thinking: {match.group(1).strip()}")
+                    if not self.thinking_config.include_in_response:
+                        final_content = re.sub(r'<thinking>.*?</thinking>', '', final_content, flags=re.DOTALL).strip()
                 break
 
         return final_content, tools_used
