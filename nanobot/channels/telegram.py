@@ -26,7 +26,14 @@ def _markdown_to_telegram_html(text: str) -> str:
     """
     if not text:
         return ""
-    
+
+    # 0. Extract and protect thinking blocks (render as expandable blockquote)
+    thinking_blocks: list[str] = []
+    def save_thinking_block(m: re.Match) -> str:
+        thinking_blocks.append(m.group(1))
+        return f"\x00TH{len(thinking_blocks) - 1}\x00"
+    text = re.sub(r'<thinking>(.*?)</thinking>', save_thinking_block, text, flags=re.DOTALL)
+
     # 1. Extract and protect code blocks (preserve content from other processing)
     code_blocks: list[str] = []
     def save_code_block(m: re.Match) -> str:
@@ -79,7 +86,12 @@ def _markdown_to_telegram_html(text: str) -> str:
         # Escape HTML in code content
         escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         text = text.replace(f"\x00CB{i}\x00", f"<pre><code>{escaped}</code></pre>")
-    
+
+    # 13. Restore thinking blocks as expandable blockquotes
+    for i, thinking in enumerate(thinking_blocks):
+        escaped = thinking.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        text = text.replace(f"\x00TH{i}\x00", f"<blockquote expandable>💭 {escaped.strip()}</blockquote>")
+
     return text
 
 

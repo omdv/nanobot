@@ -154,6 +154,12 @@ class ChannelsConfig(BaseModel):
     qq: QQConfig = Field(default_factory=QQConfig)
 
 
+class ThinkingConfig(BaseModel):
+    """Configuration for agent thinking/reasoning process."""
+    enabled: bool = True
+    include_in_response: bool = False
+
+
 class AgentDefaults(BaseModel):
     """Default agent configuration."""
     workspace: str = "~/.nanobot/workspace"
@@ -162,6 +168,7 @@ class AgentDefaults(BaseModel):
     temperature: float = 0.7
     max_tool_iterations: int = 20
     memory_window: int = 50
+    thinking: ThinkingConfig = Field(default_factory=ThinkingConfig)
 
 
 class AgentsConfig(BaseModel):
