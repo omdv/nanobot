@@ -179,6 +179,13 @@ class ChannelsConfig(Base):
     qq: QQConfig = Field(default_factory=QQConfig)
 
 
+class ThinkingConfig(Base):
+    """Configuration for agent thinking/reasoning process."""
+
+    enabled: bool = True
+    include_in_response: bool = False
+
+
 class AgentDefaults(Base):
     """Default agent configuration."""
 
@@ -188,6 +195,7 @@ class AgentDefaults(Base):
     temperature: float = 0.7
     max_tool_iterations: int = 20
     memory_window: int = 50
+    thinking: ThinkingConfig = Field(default_factory=ThinkingConfig)
 
 
 class AgentsConfig(Base):
