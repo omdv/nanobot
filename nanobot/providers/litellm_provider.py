@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 import litellm
+from loguru import logger
 from litellm import acompletion
 
 from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
@@ -219,7 +220,11 @@ class LiteLLMProvider(LLMProvider):
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
-        
+
+        sys_chars = len(messages[0].get("content", "") or "") if messages else 0
+        hist_chars = sum(len(m.get("content", "") or "") for m in messages[1:]) if len(messages) > 1 else 0
+        logger.info(f"LLM request: model={model} msgs={len(messages)} sys={sys_chars:,}c hist={hist_chars:,}c tools={len(tools) if tools else 0}")
+
         try:
             response = await acompletion(**kwargs)
             return self._parse_response(response)
@@ -256,7 +261,8 @@ class LiteLLMProvider(LLMProvider):
                 "completion_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens,
             }
-        
+            logger.info(f"LLM response: prompt={usage['prompt_tokens']:,}tok completion={usage['completion_tokens']:,}tok tools={len(tool_calls)}")
+
         reasoning_content = getattr(message, "reasoning_content", None)
         
         return LLMResponse(
