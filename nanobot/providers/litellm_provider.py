@@ -1,5 +1,6 @@
 """LiteLLM provider implementation for multi-provider support."""
 
+import asyncio
 import json
 import json_repair
 import os
@@ -20,22 +21,24 @@ _ALLOWED_MSG_KEYS = frozenset({"role", "content", "tool_calls", "tool_call_id", 
 class LiteLLMProvider(LLMProvider):
     """
     LLM provider using LiteLLM for multi-provider support.
-    
+
     Supports OpenRouter, Anthropic, OpenAI, Gemini, MiniMax, and many other providers through
     a unified interface.  Provider-specific logic is driven by the registry
     (see providers/registry.py) — no if-elif chains needed here.
     """
-    
+
     def __init__(
-        self, 
-        api_key: str | None = None, 
+        self,
+        api_key: str | None = None,
         api_base: str | None = None,
         default_model: str = "anthropic/claude-opus-4-5",
         extra_headers: dict[str, str] | None = None,
         provider_name: str | None = None,
+        fallback_model: str | None = None,
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
+        self.fallback_model = fallback_model
         self.extra_headers = extra_headers or {}
         
         # Detect gateway / local deployment.
@@ -229,11 +232,27 @@ class LiteLLMProvider(LLMProvider):
             response = await acompletion(**kwargs)
             return self._parse_response(response)
         except Exception as e:
-            # Return error as content for graceful handling
-            return LLMResponse(
-                content=f"Error calling LLM: {str(e)}",
-                finish_reason="error",
-            )
+            logger.warning(f"LLM request failed: {e}, retrying...")
+            await asyncio.sleep(2)
+            try:
+                response = await acompletion(**kwargs)
+                return self._parse_response(response)
+            except Exception as e2:
+                if self.fallback_model:
+                    logger.warning(f"Retry failed: {e2}, switching to fallback model: {self.fallback_model}")
+                    kwargs["model"] = self._resolve_model(self.fallback_model)
+                    try:
+                        response = await acompletion(**kwargs)
+                        return self._parse_response(response)
+                    except Exception as e3:
+                        return LLMResponse(
+                            content=f"Error calling LLM (fallback failed): {str(e3)}",
+                            finish_reason="error",
+                        )
+                return LLMResponse(
+                    content=f"Error calling LLM: {str(e2)}",
+                    finish_reason="error",
+                )
     
     def _parse_response(self, response: Any) -> LLMResponse:
         """Parse LiteLLM response into our standard format."""

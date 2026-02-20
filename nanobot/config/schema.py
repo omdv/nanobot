@@ -191,6 +191,7 @@ class AgentDefaults(Base):
 
     workspace: str = "~/.nanobot/workspace"
     model: str = "anthropic/claude-opus-4-5"
+    fallback_model: str | None = None  # Fallback model on errors (e.g., "anthropic/claude-sonnet-4")
     max_tokens: int = 8192
     temperature: float = 0.7
     max_tool_iterations: int = 20
