@@ -93,6 +93,7 @@ class AgentLoop:
         )
 
         self._running = False
+        self._last_stats: dict[str, Any] = {}
         self._mcp_servers = mcp_servers or {}
         self._mcp_stack: AsyncExitStack | None = None
         self._mcp_connected = False
@@ -235,6 +236,18 @@ class AgentLoop:
                 max_tokens=self.max_tokens,
             )
 
+            # Store context stats from this request
+            sys_chars = len(messages[0].get("content", "") or "") if messages else 0
+            hist_chars = sum(len(m.get("content", "") or "") for m in messages[1:])
+            self._last_stats = {
+                "msgs": len(messages),
+                "sys_chars": sys_chars,
+                "hist_chars": hist_chars,
+                "tools": len(self.tools.get_definitions()),
+                "prompt_tokens": response.usage.get("prompt_tokens") if response.usage else None,
+                "completion_tokens": response.usage.get("completion_tokens") if response.usage else None,
+            }
+
             if response.has_tool_calls:
                 if on_progress:
                     clean = self._strip_think(response.content)
@@ -371,7 +384,34 @@ class AgentLoop:
                                   content="New session started. Memory consolidation in progress.")
         if cmd == "/help":
             return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id,
-                                  content="🐈 nanobot commands:\n/new — Start a new conversation\n/help — Show available commands")
+                                  content="🐈 nanobot commands:\n/new — Start a new conversation\n/status — Show context stats\n/help — Show available commands")
+        if cmd == "/status":
+            s = self._last_stats
+            if s:
+                prompt_tok = s.get("prompt_tokens") or 0
+                sys_chars = s.get("sys_chars", 0)
+                hist_chars = s.get("hist_chars", 0)
+                est_content_tok = (sys_chars + hist_chars) // 4
+                tool_tok = max(0, prompt_tok - est_content_tok)
+                last_request = f"""
+Last LLM Request:
+├── System prompt: ~{sys_chars // 4:,} tok ({sys_chars:,}c)
+├── Conversation: ~{hist_chars // 4:,} tok ({hist_chars:,}c)
+├── Tools: ~{tool_tok:,} tok ({s.get("tools", "?")} definitions)
+└── Total: {prompt_tok:,} tok"""
+            else:
+                last_request = "\n(No LLM requests yet this session)"
+            fallback = getattr(self.provider, 'fallback_model', None) or "none"
+            status = f"""Config
+├── Model: {self.model}
+└── Fallback: {fallback}
+
+Session
+├── Messages: {len(session.messages)} stored
+├── Consolidated: {session.last_consolidated} archived
+└── History window: last {self.memory_window} messages
+{last_request}"""
+            return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id, content=status)
 
         if len(session.messages) > self.memory_window and session.key not in self._consolidating:
             self._consolidating.add(session.key)
