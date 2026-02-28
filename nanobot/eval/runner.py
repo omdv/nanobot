@@ -43,14 +43,18 @@ DEFAULT_MODELS_FILE = Path(__file__).parent / "models.txt"
 
 
 def load_models_from_file(file_path: Path) -> list[str]:
-    """Load model list from a text file (one per line, # for comments)."""
+    """Load model list from a text file (one per line, # for comments).
+
+    Model names are bare (e.g. ``anthropic/claude-sonnet-4-5``); the
+    ``openrouter/`` prefix is added automatically.
+    """
     models = []
     with open(file_path) as f:
         for line in f:
             line = line.strip()
             # Skip empty lines and comments
             if line and not line.startswith("#"):
-                models.append(line)
+                models.append(f"openrouter/{line}")
     return models
 
 
@@ -152,7 +156,6 @@ def make_agent(config, provider: LiteLLMProvider, model: str, workspace: Path) -
         brave_api_key=config.tools.web.search.api_key or None,
         exec_config=config.tools.exec,
         restrict_to_workspace=config.tools.restrict_to_workspace,
-        thinking_config=config.agents.defaults.thinking,
         session_manager=session_manager,
         cron_service=cron_service,
     )
@@ -179,12 +182,18 @@ async def run_task(agent: AgentLoop, task: dict, session_key: str, workspace: Pa
     session = agent.sessions.get_or_create(session_key)
     usage = session.metadata.get("usage", {}) or {}
 
-    # Get tools used from last assistant message
-    tools_used = []
-    if session.messages:
-        last_msg = session.messages[-1]
-        if last_msg.get("role") == "assistant":
-            tools_used = last_msg.get("tools_used") or []  # Handle None value
+    # Collect tools used in this turn by scanning backwards to the triggering user message.
+    # Assistant messages carry tool_calls dicts; tools_used is never stored on session messages.
+    tools_used: list[str] = []
+    for msg in reversed(session.messages):
+        if msg.get("role") == "user":
+            break
+        if msg.get("role") == "assistant":
+            for tc in msg.get("tool_calls") or []:
+                name = tc.get("function", {}).get("name")
+                if name:
+                    tools_used.append(name)
+    tools_used.reverse()
 
     result = {
         "task_id": task_id,
