@@ -1,0 +1,176 @@
+# Evaluation test cases
+# Tasks are run sequentially within a single session per model
+# Tests both capability and context handling as session grows
+
+# Verification types:
+# - expect_contains: response must contain this string (case-insensitive)
+# - expect_tools: these tools must have been called
+# - verify_file: check file exists and optionally contains content
+# - verify_cron: check cron job was created with matching name
+
+tasks:
+  # ============================================================================
+  # 1. BASELINE - Simple capability checks
+  # ============================================================================
+  - id: greeting
+    prompt: "Hi! What's your name and what can you help me with?"
+    description: "Basic greeting and capability check"
+
+  - id: simple_math
+    prompt: "What's 247 * 18? Just give me the number."
+    description: "Simple arithmetic"
+    expect_contains: "4446"
+
+  - id: factual
+    prompt: "What's the capital of Australia? Answer in one word."
+    description: "Basic factual knowledge"
+    expect_contains: "Canberra"
+
+  # ============================================================================
+  # 2. FILE OPERATIONS - Read and write files
+  # ============================================================================
+  - id: file_write
+    prompt: |
+      Create a file called "test_output.txt" in the workspace with the content:
+      "Hello from eval test - magic number 7742"
+    description: "Write a file to workspace"
+    expect_tools: ["write_file"]
+    verify_file:
+      path: "test_output.txt"
+      contains: "7742"
+
+  - id: file_read
+    prompt: "Read the file test_output.txt that you just created. What magic number is in it?"
+    description: "Read a file from workspace"
+    expect_tools: ["read_file"]
+    expect_contains: "7742"
+
+  - id: file_edit
+    prompt: |
+      Edit the file test_output.txt and change "7742" to "9999".
+    description: "Edit an existing file"
+    expect_tools: ["edit_file"]
+    verify_file:
+      path: "test_output.txt"
+      contains: "9999"
+
+  # ============================================================================
+  # 3. HEARTBEAT - Task management
+  # ============================================================================
+  - id: heartbeat_write
+    prompt: |
+      Create or update HEARTBEAT.md with a task:
+      "- [ ] Check system status and report uptime"
+    description: "Write a heartbeat task"
+    verify_file:
+      path: "HEARTBEAT.md"
+      contains: "Check system status"
+
+  - id: heartbeat_read
+    prompt: "Read HEARTBEAT.md and tell me what task is listed there."
+    description: "Read heartbeat tasks"
+    expect_tools: ["read_file"]
+    expect_contains: "system status"
+
+  # ============================================================================
+  # 4. MEMORY - Long-term memory persistence
+  # ============================================================================
+  - id: memory_store
+    prompt: |
+      Remember this important fact in your long-term memory:
+      "The user's favorite programming language is Rust and their project codename is Phoenix."
+    description: "Store fact in memory"
+    verify_file:
+      path: "memory/MEMORY.md"
+      contains: "Phoenix"
+
+  - id: memory_recall
+    prompt: "What is my favorite programming language and what's my project codename?"
+    description: "Recall from memory"
+    expect_contains: "Rust"
+
+  # ============================================================================
+  # 5. CODE EXECUTION
+  # ============================================================================
+  - id: code_exec_simple
+    prompt: |
+      Write and run a Python script that calculates fibonacci(10) and prints the result.
+    description: "Code execution - fibonacci"
+    expect_tools: ["exec"]
+    expect_contains: "55"
+
+  - id: code_exec_file
+    prompt: |
+      Write a Python script to a file called "calculator.py" that has a function
+      add(a, b) which returns a + b. Then run: python -c "from calculator import add; print(add(15, 27))"
+    description: "Code execution - write and import"
+    expect_tools: ["write_file", "exec"]
+    expect_contains: "42"
+
+  # ============================================================================
+  # 6. CRON - Scheduled tasks
+  # ============================================================================
+  - id: cron_create
+    prompt: |
+      Create a cron job that runs every hour with the message "Hourly health check".
+      Use the cron tool with every_seconds=3600.
+    description: "Create a cron job"
+    expect_tools: ["cron"]
+    verify_cron:
+      name_contains: "health"
+
+  - id: cron_list
+    prompt: "List all scheduled cron jobs."
+    description: "List cron jobs"
+    expect_tools: ["cron"]
+    expect_contains: "health"
+
+  # ============================================================================
+  # 7. CONTEXT RECALL - Test session memory
+  # ============================================================================
+  - id: recall_math
+    prompt: "Earlier in our conversation I asked you a multiplication problem. What was the answer?"
+    description: "Recall from earlier in session"
+    expect_contains: "4446"
+
+  - id: recall_file
+    prompt: "What was the original magic number I asked you to write to test_output.txt?"
+    description: "Recall earlier file operation"
+    expect_contains: "7742"
+
+  # ============================================================================
+  # 8. COMPLEX MULTI-STEP - Skill creation + verification
+  # ============================================================================
+  - id: skill_create
+    prompt: |
+      Create a simple skill called "greeting-skill" in the workspace/skills directory.
+
+      The skill should have:
+      1. A SKILL.md file with proper frontmatter (name: greeting-skill, description: "A simple greeting skill")
+      2. A scripts/greet.py file that prints "Hello from greeting-skill!"
+
+      Create the directory structure and both files.
+    description: "Create a custom skill with script"
+    expect_tools: ["write_file"]
+    verify_file:
+      path: "skills/greeting-skill/SKILL.md"
+      contains: "greeting-skill"
+
+  - id: skill_verify_script
+    prompt: "Run the greeting skill script: python skills/greeting-skill/scripts/greet.py"
+    description: "Execute the skill script"
+    expect_tools: ["exec"]
+    expect_contains: "Hello from greeting-skill"
+
+  # ============================================================================
+  # 9. SESSION STRESS - Summarization at end
+  # ============================================================================
+  - id: summarize_session
+    prompt: |
+      Summarize everything we've done in this conversation. Include:
+      1. The files we created/modified
+      2. The cron jobs we set up
+      3. What we stored in memory
+      4. The skill we created
+    description: "Full session recall and summarization"
+    expect_contains: "test_output"
