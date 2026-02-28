@@ -174,12 +174,13 @@ class AgentLoop:
         self,
         initial_messages: list[dict],
         on_progress: Callable[..., Awaitable[None]] | None = None,
-    ) -> tuple[str | None, list[str], list[dict]]:
-        """Run the agent iteration loop. Returns (final_content, tools_used, messages)."""
+    ) -> tuple[str | None, list[str], list[dict], dict]:
+        """Run the agent iteration loop. Returns (final_content, tools_used, messages, usage)."""
         messages = initial_messages
         iteration = 0
         final_content = None
         tools_used: list[str] = []
+        usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost": 0.0}
 
         while iteration < self.max_iterations:
             iteration += 1
@@ -192,7 +193,11 @@ class AgentLoop:
                 max_tokens=self.max_tokens,
             )
 
-            # Store context stats from this request
+            if response.usage:
+                usage["prompt_tokens"] += response.usage.get("prompt_tokens") or 0
+                usage["completion_tokens"] += response.usage.get("completion_tokens") or 0
+                usage["total_tokens"] += response.usage.get("total_tokens") or 0
+                usage["cost"] += response.usage.get("cost") or 0.0
             sys_chars = len(messages[0].get("content", "") or "") if messages else 0
             hist_chars = sum(len(m.get("content", "") or "") for m in messages[1:])
             self._last_stats = {
@@ -250,7 +255,7 @@ class AgentLoop:
                 "without completing the task. You can try breaking the task into smaller steps."
             )
 
-        return final_content, tools_used, messages
+        return final_content, tools_used, messages, usage
 
     async def run(self) -> None:
         """Run the agent loop, dispatching messages as tasks to stay responsive to /stop."""
@@ -343,8 +348,9 @@ class AgentLoop:
                 history=history,
                 current_message=msg.content, channel=channel, chat_id=chat_id,
             )
-            final_content, _, all_msgs = await self._run_agent_loop(messages)
+            final_content, _, all_msgs, turn_usage = await self._run_agent_loop(messages)
             self._save_turn(session, all_msgs, 1 + len(history))
+            self._accumulate_session_usage(session, turn_usage)
             self.sessions.save(session)
             return OutboundMessage(channel=channel, chat_id=chat_id,
                                   content=final_content or "Background task completed.")
@@ -459,7 +465,7 @@ Session
                 channel=msg.channel, chat_id=msg.chat_id, content=content, metadata=meta,
             ))
 
-        final_content, _, all_msgs = await self._run_agent_loop(
+        final_content, _, all_msgs, turn_usage = await self._run_agent_loop(
             initial_messages, on_progress=on_progress or _bus_progress,
         )
 
@@ -467,6 +473,7 @@ Session
             final_content = "I've completed processing but have no response to give."
 
         self._save_turn(session, all_msgs, 1 + len(history))
+        self._accumulate_session_usage(session, turn_usage)
         self.sessions.save(session)
 
         if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
@@ -478,6 +485,13 @@ Session
             channel=msg.channel, chat_id=msg.chat_id, content=final_content,
             metadata=msg.metadata or {},
         )
+
+    def _accumulate_session_usage(self, session, turn_usage: dict) -> None:
+        """Add turn_usage into session.metadata['usage'], creating the key if absent."""
+        stored = session.metadata.setdefault("usage", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost": 0.0})
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+            stored[key] = stored.get(key, 0) + (turn_usage.get(key) or 0)
+        stored["cost"] = round(stored.get("cost", 0.0) + (turn_usage.get("cost") or 0.0), 8)
 
     def _save_turn(self, session: Session, messages: list[dict], skip: int) -> None:
         """Save new-turn messages into session, truncating large tool results."""

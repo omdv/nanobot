@@ -1,0 +1,436 @@
+{
+  "model": "openrouter/anthropic/claude-haiku-4.5",
+  "session_key": "eval",
+  "workspace": "/tmp/nanobot-eval-181bwuaw/openrouter_anthropic_claude-haiku-4.5",
+  "timestamp": "2026-02-28T15:41:07.342197",
+  "tasks": [
+    {
+      "task_id": "greeting",
+      "prompt": "Hi! What's your name and what can you help me with?",
+      "response": "Hi! I'm **nanobot** \ud83d\udc08, your helpful AI assistant.\n\nHere's what I can help you with:\n\n## Core Capabilities\n- **Answer questions** on virtually any topic\n- **Write, read, and edit files** in your workspace\n- **Execute shell commands** and scripts\n- **Search the web** and fetch content from URLs\n- **Schedule reminders** and recurring tasks (cron)\n- **Send messages** to chat channels\n\n## Available Skills\nI have several specialized skills loaded:\n\n- **Memory** \u2014 Long-term facts and searchable history\n- **Weather** \u2014 Current conditions and forecasts\n- **Cron** \u2014 Schedule reminders and recurring tasks\n- **TMux** \u2014 Control interactive terminal sessions\n- **Skill Creator** \u2014 Design and package custom agent skills\n- **ClawHub** \u2014 Search and install skills from the public registry\n\n## How I Work\n- I think through problems step-by-step before acting\n- I read files before modifying them to ensure accuracy\n- I search my history for context about past conversations\n- I ask for clarification when requests are ambiguous\n\n**What would you like help with today?** \ud83d\ude0a",
+      "error": null,
+      "elapsed_ms": 4503.18,
+      "tools_used": [],
+      "session_messages": 2,
+      "usage_snapshot": {
+        "prompt_tokens": 3126,
+        "completion_tokens": 264,
+        "total_tokens": 3390,
+        "cost": 0.004446
+      }
+    },
+    {
+      "task_id": "simple_math",
+      "prompt": "What's 247 * 18? Just give me the number.",
+      "response": "4446",
+      "error": null,
+      "elapsed_ms": 831.22,
+      "tools_used": [],
+      "session_messages": 4,
+      "usage_snapshot": {
+        "prompt_tokens": 6534,
+        "completion_tokens": 270,
+        "total_tokens": 6804,
+        "cost": 0.007884
+      },
+      "expect_contains": "4446",
+      "pass_contains": true
+    },
+    {
+      "task_id": "factual",
+      "prompt": "What's the capital of Australia? Answer in one word.",
+      "response": "Canberra",
+      "error": null,
+      "elapsed_ms": 911.53,
+      "tools_used": [],
+      "session_messages": 6,
+      "usage_snapshot": {
+        "prompt_tokens": 9963,
+        "completion_tokens": 277,
+        "total_tokens": 10240,
+        "cost": 0.011348
+      },
+      "expect_contains": "Canberra",
+      "pass_contains": true
+    },
+    {
+      "task_id": "file_write",
+      "prompt": "Create a file called \"test_output.txt\" in the workspace with the content:\n\"Hello from eval test - magic number 7742\"",
+      "response": "Done! Created `test_output.txt` with the specified content.",
+      "error": null,
+      "elapsed_ms": 2564.52,
+      "tools_used": [
+        "write_file"
+      ],
+      "session_messages": 10,
+      "usage_snapshot": {
+        "prompt_tokens": 17073,
+        "completion_tokens": 410,
+        "total_tokens": 17483,
+        "cost": 0.019123
+      },
+      "expect_tools": [
+        "write_file"
+      ],
+      "pass_tools": true,
+      "verify_file": {
+        "path": "test_output.txt",
+        "contains": "7742"
+      },
+      "pass_file": true,
+      "file_check_msg": "OK"
+    },
+    {
+      "task_id": "file_read",
+      "prompt": "Read the file test_output.txt that you just created. What magic number is in it?",
+      "response": "7742",
+      "error": null,
+      "elapsed_ms": 2351.16,
+      "tools_used": [
+        "read_file"
+      ],
+      "session_messages": 14,
+      "usage_snapshot": {
+        "prompt_tokens": 24546,
+        "completion_tokens": 504,
+        "total_tokens": 25050,
+        "cost": 0.027066
+      },
+      "expect_contains": "7742",
+      "pass_contains": true,
+      "expect_tools": [
+        "read_file"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "file_edit",
+      "prompt": "Edit the file test_output.txt and change \"7742\" to \"9999\".",
+      "response": "Done! Changed \"7742\" to \"9999\" in test_output.txt.",
+      "error": null,
+      "elapsed_ms": 2763.24,
+      "tools_used": [
+        "edit_file"
+      ],
+      "session_messages": 18,
+      "usage_snapshot": {
+        "prompt_tokens": 32379,
+        "completion_tokens": 671,
+        "total_tokens": 33050,
+        "cost": 0.035734
+      },
+      "expect_tools": [
+        "edit_file"
+      ],
+      "pass_tools": true,
+      "verify_file": {
+        "path": "test_output.txt",
+        "contains": "9999"
+      },
+      "pass_file": true,
+      "file_check_msg": "OK"
+    },
+    {
+      "task_id": "heartbeat_write",
+      "prompt": "Create or update HEARTBEAT.md with a task:\n\"- [ ] Check system status and report uptime\"",
+      "response": "Created HEARTBEAT.md with the task.",
+      "error": null,
+      "elapsed_ms": 2457.95,
+      "tools_used": [
+        "write_file"
+      ],
+      "session_messages": 22,
+      "usage_snapshot": {
+        "prompt_tokens": 40678,
+        "completion_tokens": 800,
+        "total_tokens": 41478,
+        "cost": 0.044678
+      },
+      "verify_file": {
+        "path": "HEARTBEAT.md",
+        "contains": "Check system status"
+      },
+      "pass_file": true,
+      "file_check_msg": "OK"
+    },
+    {
+      "task_id": "heartbeat_read",
+      "prompt": "Read HEARTBEAT.md and tell me what task is listed there.",
+      "response": "The task listed in HEARTBEAT.md is: **Check system status and report uptime**",
+      "error": null,
+      "elapsed_ms": 2056.01,
+      "tools_used": [
+        "read_file"
+      ],
+      "session_messages": 26,
+      "usage_snapshot": {
+        "prompt_tokens": 49322,
+        "completion_tokens": 912,
+        "total_tokens": 50234,
+        "cost": 0.053882
+      },
+      "expect_contains": "system status",
+      "pass_contains": true,
+      "expect_tools": [
+        "read_file"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "memory_store",
+      "prompt": "Remember this important fact in your long-term memory:\n\"The user's favorite programming language is Rust and their project codename is Phoenix.\"",
+      "response": "\u2713 Saved to long-term memory! I'll remember that your favorite programming language is **Rust** and your project codename is **Phoenix**.",
+      "error": null,
+      "elapsed_ms": 4112.22,
+      "tools_used": [
+        "read_file",
+        "write_file"
+      ],
+      "session_messages": 32,
+      "usage_snapshot": {
+        "prompt_tokens": 63171,
+        "completion_tokens": 1199,
+        "total_tokens": 64370,
+        "cost": 0.069166
+      },
+      "verify_file": {
+        "path": "memory/MEMORY.md",
+        "contains": "Phoenix"
+      },
+      "pass_file": true,
+      "file_check_msg": "OK"
+    },
+    {
+      "task_id": "memory_recall",
+      "prompt": "What is my favorite programming language and what's my project codename?",
+      "response": "Based on my long-term memory:\n\n- **Favorite Programming Language**: Rust\n- **Project Codename**: Phoenix",
+      "error": null,
+      "elapsed_ms": 1100.07,
+      "tools_used": [],
+      "session_messages": 34,
+      "usage_snapshot": {
+        "prompt_tokens": 68074,
+        "completion_tokens": 1229,
+        "total_tokens": 69303,
+        "cost": 0.074219
+      },
+      "expect_contains": "Rust",
+      "pass_contains": true
+    },
+    {
+      "task_id": "code_exec_simple",
+      "prompt": "Write and run a Python script that calculates fibonacci(10) and prints the result.",
+      "response": "Done! The script calculated **fibonacci(10) = 55**.",
+      "error": null,
+      "elapsed_ms": 4614.73,
+      "tools_used": [
+        "write_file",
+        "exec"
+      ],
+      "session_messages": 40,
+      "usage_snapshot": {
+        "prompt_tokens": 83581,
+        "completion_tokens": 1552,
+        "total_tokens": 85133,
+        "cost": 0.091341
+      },
+      "expect_contains": "55",
+      "pass_contains": true,
+      "expect_tools": [
+        "exec"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "code_exec_file",
+      "prompt": "Write a Python script to a file called \"calculator.py\" that has a function\nadd(a, b) which returns a + b. Then run: python -c \"from calculator import add; print(add(15, 27))\"",
+      "response": "Done! Created calculator.py with the add function and ran the command. Result: **42**",
+      "error": null,
+      "elapsed_ms": 4071.31,
+      "tools_used": [
+        "write_file",
+        "exec"
+      ],
+      "session_messages": 46,
+      "usage_snapshot": {
+        "prompt_tokens": 100286,
+        "completion_tokens": 1813,
+        "total_tokens": 102099,
+        "cost": 0.109351
+      },
+      "expect_contains": "42",
+      "pass_contains": true,
+      "expect_tools": [
+        "write_file",
+        "exec"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "cron_create",
+      "prompt": "Create a cron job that runs every hour with the message \"Hourly health check\".\nUse the cron tool with every_seconds=3600.",
+      "response": "Done! Created a recurring cron job that will run every hour (3600 seconds) with the message \"Hourly health check\". Job ID: **d416fb31**",
+      "error": null,
+      "elapsed_ms": 2517.59,
+      "tools_used": [
+        "cron"
+      ],
+      "session_messages": 50,
+      "usage_snapshot": {
+        "prompt_tokens": 111966,
+        "completion_tokens": 1965,
+        "total_tokens": 113931,
+        "cost": 0.121791
+      },
+      "expect_tools": [
+        "cron"
+      ],
+      "pass_tools": true,
+      "verify_cron": {
+        "name_contains": "health"
+      },
+      "pass_cron": true,
+      "cron_check_msg": "OK"
+    },
+    {
+      "task_id": "cron_list",
+      "prompt": "List all scheduled cron jobs.",
+      "response": "Here are all scheduled cron jobs:\n\n- **Hourly health check** (ID: d416fb31, recurring every 3600 seconds)",
+      "error": null,
+      "elapsed_ms": 2485.8,
+      "tools_used": [
+        "cron"
+      ],
+      "session_messages": 54,
+      "usage_snapshot": {
+        "prompt_tokens": 123982,
+        "completion_tokens": 2063,
+        "total_tokens": 126045,
+        "cost": 0.134297
+      },
+      "expect_contains": "health",
+      "pass_contains": true,
+      "expect_tools": [
+        "cron"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "recall_math",
+      "prompt": "Earlier in our conversation I asked you a multiplication problem. What was the answer?",
+      "response": "Earlier in our conversation, you asked me to calculate **247 * 18**, and the answer was **4446**.",
+      "error": null,
+      "elapsed_ms": 1255.58,
+      "tools_used": [],
+      "session_messages": 56,
+      "usage_snapshot": {
+        "prompt_tokens": 130092,
+        "completion_tokens": 2091,
+        "total_tokens": 132183,
+        "cost": 0.140547
+      },
+      "expect_contains": "4446",
+      "pass_contains": true
+    },
+    {
+      "task_id": "recall_file",
+      "prompt": "What was the original magic number I asked you to write to test_output.txt?",
+      "response": "The original magic number you asked me to write to test_output.txt was **7742**.",
+      "error": null,
+      "elapsed_ms": 931.81,
+      "tools_used": [],
+      "session_messages": 58,
+      "usage_snapshot": {
+        "prompt_tokens": 136251,
+        "completion_tokens": 2114,
+        "total_tokens": 138365,
+        "cost": 0.146821
+      },
+      "expect_contains": "7742",
+      "pass_contains": true
+    },
+    {
+      "task_id": "skill_create",
+      "prompt": "Create a simple skill called \"greeting-skill\" in the workspace/skills directory.\n\nThe skill should have:\n1. A SKILL.md file with proper frontmatter (name: greeting-skill, description: \"A simple greeting skill\")\n2. A scripts/greet.py file that prints \"Hello from greeting-skill!\"\n\nCreate the directory structure and both files.",
+      "response": "Perfect! Created the greeting-skill with the following structure:\n\n```\nskills/greeting-skill/\n\u251c\u2500\u2500 SKILL.md\n\u2514\u2500\u2500 scripts/\n    \u2514\u2500\u2500 greet.py\n```\n\n**Files created:**\n1. \u2713 `SKILL.md` \u2014 With proper frontmatter (name: greeting-skill, description: \"A simple greeting skill\")\n2. \u2713 `scripts/greet.py` \u2014 Python script that prints \"Hello from greeting-skill!\"\n\nThe skill is ready to use!",
+      "error": null,
+      "elapsed_ms": 6013.87,
+      "tools_used": [
+        "write_file",
+        "write_file"
+      ],
+      "session_messages": 64,
+      "usage_snapshot": {
+        "prompt_tokens": 155770,
+        "completion_tokens": 2573,
+        "total_tokens": 158343,
+        "cost": 0.168635
+      },
+      "expect_tools": [
+        "write_file"
+      ],
+      "pass_tools": true,
+      "verify_file": {
+        "path": "skills/greeting-skill/SKILL.md",
+        "contains": "greeting-skill"
+      },
+      "pass_file": true,
+      "file_check_msg": "OK"
+    },
+    {
+      "task_id": "skill_verify_script",
+      "prompt": "Run the greeting skill script: python skills/greeting-skill/scripts/greet.py",
+      "response": "Done! The greeting skill script ran successfully and printed: **Hello from greeting-skill!**",
+      "error": null,
+      "elapsed_ms": 2789.72,
+      "tools_used": [
+        "exec"
+      ],
+      "session_messages": 68,
+      "usage_snapshot": {
+        "prompt_tokens": 169800,
+        "completion_tokens": 2700,
+        "total_tokens": 172500,
+        "cost": 0.1833
+      },
+      "expect_contains": "Hello from greeting-skill",
+      "pass_contains": true,
+      "expect_tools": [
+        "exec"
+      ],
+      "pass_tools": true
+    },
+    {
+      "task_id": "summarize_session",
+      "prompt": "Summarize everything we've done in this conversation. Include:\n1. The files we created/modified\n2. The cron jobs we set up\n3. What we stored in memory\n4. The skill we created",
+      "response": "# Conversation Summary\n\n## Files Created/Modified\n\n1. **test_output.txt** \u2014 Created with \"Hello from eval test - magic number 7742\", then edited to change 7742 \u2192 9999\n2. **HEARTBEAT.md** \u2014 Created with task: \"- [ ] Check system status and report uptime\"\n3. **fibonacci.py** \u2014 Created and executed, calculated fibonacci(10) = 55\n4. **calculator.py** \u2014 Created with add(a, b) function, tested with add(15, 27) = 42\n5. **skills/greeting-skill/SKILL.md** \u2014 Created with proper frontmatter (name: greeting-skill, description: \"A simple greeting skill\")\n6. **skills/greeting-skill/scripts/greet.py** \u2014 Created and executed, prints \"Hello from greeting-skill!\"\n\n## Cron Jobs\n\n- **Hourly health check** (ID: d416fb31) \u2014 Recurring job every 3600 seconds (1 hour) with message \"Hourly health check\"\n\n## Long-term Memory Stored\n\n- **Favorite Programming Language**: Rust\n- **Project Codename**: Phoenix\n\n## Skill Created\n\n- **greeting-skill** \u2014 A simple greeting skill with:\n  - SKILL.md with proper frontmatter and documentation\n  - scripts/greet.py that prints greeting output\n  - Successfully tested and executed",
+      "error": null,
+      "elapsed_ms": 3820.43,
+      "tools_used": [],
+      "session_messages": 70,
+      "usage_snapshot": {
+        "prompt_tokens": 176949,
+        "completion_tokens": 3023,
+        "total_tokens": 179972,
+        "cost": 0.192064
+      },
+      "expect_contains": "test_output",
+      "pass_contains": true
+    }
+  ],
+  "summary": {
+    "total_tasks": 19,
+    "passed": 19,
+    "failed": 0,
+    "errors": 0,
+    "total_tokens": 179972,
+    "total_cost": 0.192064,
+    "timing": {
+      "total_ms": 52151.94,
+      "mean_ms": 2744.84,
+      "min_ms": 831.22,
+      "max_ms": 6013.87,
+      "stddev_ms": 1456.01
+    }
+  }
+}

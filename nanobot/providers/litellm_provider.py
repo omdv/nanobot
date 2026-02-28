@@ -49,6 +49,7 @@ class LiteLLMProvider(LLMProvider):
         # provider_name (from config key) is the primary signal;
         # api_key / api_base are fallback for auto-detection.
         self._gateway = find_gateway(provider_name, api_key, api_base)
+        self._openrouter_prices: dict[str, tuple[float, float]] | None = None
         
         # Configure environment variables
         if api_key:
@@ -230,7 +231,7 @@ class LiteLLMProvider(LLMProvider):
         
         try:
             response = await acompletion(**kwargs)
-            return self._parse_response(response)
+            return self._parse_response(response, model)
         except Exception as e:
             # Return error as content for graceful handling
             return LLMResponse(
@@ -238,7 +239,7 @@ class LiteLLMProvider(LLMProvider):
                 finish_reason="error",
             )
     
-    def _parse_response(self, response: Any) -> LLMResponse:
+    def _parse_response(self, response: Any, model: str = "") -> LLMResponse:
         """Parse LiteLLM response into our standard format."""
         choice = response.choices[0]
         message = choice.message
@@ -259,10 +260,22 @@ class LiteLLMProvider(LLMProvider):
         
         usage = {}
         if hasattr(response, "usage") and response.usage:
+            cost = 0.0
+            try:
+                cost = litellm.completion_cost(completion_response=response)
+            except Exception:
+                pass
+            if not cost:
+                cost = self._openrouter_cost(
+                    model or getattr(response, "model", "") or "",
+                    response.usage.prompt_tokens,
+                    response.usage.completion_tokens,
+                )
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens,
+                "cost": cost,
             }
         
         reasoning_content = getattr(message, "reasoning_content", None) or None
@@ -275,6 +288,32 @@ class LiteLLMProvider(LLMProvider):
             reasoning_content=reasoning_content,
         )
     
+    def _openrouter_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+        """Compute cost using OpenRouter's pricing API, fetched once and cached."""
+        if not model.startswith("openrouter/"):
+            return 0.0
+        or_model = model.removeprefix("openrouter/")
+        if self._openrouter_prices is None:
+            try:
+                import httpx
+                with httpx.Client(verify=False, timeout=10) as client:
+                    resp = client.get(
+                        "https://openrouter.ai/api/v1/models",
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
+                    data = resp.json()
+                self._openrouter_prices = {
+                    m["id"]: (float(m["pricing"]["prompt"]), float(m["pricing"]["completion"]))
+                    for m in data.get("data", [])
+                    if m.get("pricing")
+                }
+            except Exception:
+                self._openrouter_prices = {}
+        prices = self._openrouter_prices.get(or_model)
+        if not prices:
+            return 0.0
+        return prices[0] * prompt_tokens + prices[1] * completion_tokens
+
     def get_default_model(self) -> str:
         """Get the default model."""
         return self.default_model

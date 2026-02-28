@@ -291,7 +291,8 @@ async def evaluate_model(
                 status_parts.append(f"cron:{'PASS' if result['pass_cron'] else 'FAIL'}")
 
             status = " | ".join(status_parts)
-            print(f"  -> {status} ({result['elapsed_ms']:.0f}ms, {result['usage_snapshot']['total_tokens']} tokens)")
+            snap = result['usage_snapshot']
+            print(f"  -> {status} ({result['elapsed_ms']:.0f}ms, {snap['total_tokens']} tok, ${snap['cost']:.4f})")
 
             if result.get("error"):
                 print(f"  ERROR: {result['error']}")
