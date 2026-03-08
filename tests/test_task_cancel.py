@@ -130,12 +130,8 @@ class TestSubagentCancellation:
     @pytest.mark.asyncio
     async def test_cancel_by_session(self):
         from nanobot.agent.subagent import SubagentManager
-        from nanobot.bus.queue import MessageBus
-
-        bus = MessageBus()
-        provider = MagicMock()
-        provider.get_default_model.return_value = "test-model"
-        mgr = SubagentManager(provider=provider, workspace=MagicMock(), bus=bus)
+        loop = MagicMock()
+        mgr = SubagentManager(loop=loop)
 
         cancelled = asyncio.Event()
 
@@ -158,10 +154,7 @@ class TestSubagentCancellation:
     @pytest.mark.asyncio
     async def test_cancel_by_session_no_tasks(self):
         from nanobot.agent.subagent import SubagentManager
-        from nanobot.bus.queue import MessageBus
 
-        bus = MessageBus()
-        provider = MagicMock()
-        provider.get_default_model.return_value = "test-model"
-        mgr = SubagentManager(provider=provider, workspace=MagicMock(), bus=bus)
+        loop = MagicMock()
+        mgr = SubagentManager(loop=loop)
         assert await mgr.cancel_by_session("nonexistent") == 0

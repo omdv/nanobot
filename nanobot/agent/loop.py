@@ -86,19 +86,7 @@ class AgentLoop:
         self.context = ContextBuilder(workspace)
         self.sessions = session_manager or SessionManager(workspace)
         self.tools = ToolRegistry()
-        self.subagents = SubagentManager(
-            provider=provider,
-            workspace=workspace,
-            bus=bus,
-            model=self.model,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            reasoning_effort=reasoning_effort,
-            brave_api_key=brave_api_key,
-            web_proxy=web_proxy,
-            exec_config=self.exec_config,
-            restrict_to_workspace=restrict_to_workspace,
-        )
+        self.subagents = SubagentManager(loop=self)
 
         self._running = False
         self._mcp_servers = mcp_servers or {}
@@ -181,19 +169,28 @@ class AgentLoop:
         self,
         initial_messages: list[dict],
         on_progress: Callable[..., Awaitable[None]] | None = None,
+        *,
+        tools: ToolRegistry | None = None,
+        max_iterations: int | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
-        """Run the agent iteration loop. Returns (final_content, tools_used, messages)."""
+        """Run the agent iteration loop. Returns (final_content, tools_used, messages).
+
+        ``tools`` and ``max_iterations`` override the instance defaults, allowing
+        callers such as SubagentManager to inject a custom tool set and cap.
+        """
+        _tools = tools or self.tools
+        _max_iter = max_iterations if max_iterations is not None else self.max_iterations
         messages = initial_messages
         iteration = 0
         final_content = None
         tools_used: list[str] = []
 
-        while iteration < self.max_iterations:
+        while iteration < _max_iter:
             iteration += 1
 
             response = await self.provider.chat(
                 messages=messages,
-                tools=self.tools.get_definitions(),
+                tools=_tools.get_definitions(),
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
@@ -228,7 +225,7 @@ class AgentLoop:
                     tools_used.append(tool_call.name)
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.info("Tool call: {}({})", tool_call.name, args_str[:200])
-                    result = await self.tools.execute(tool_call.name, tool_call.arguments)
+                    result = await _tools.execute(tool_call.name, tool_call.arguments)
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
@@ -247,10 +244,10 @@ class AgentLoop:
                 final_content = clean
                 break
 
-        if final_content is None and iteration >= self.max_iterations:
-            logger.warning("Max iterations ({}) reached", self.max_iterations)
+        if final_content is None and iteration >= _max_iter:
+            logger.warning("Max iterations ({}) reached", _max_iter)
             final_content = (
-                f"I reached the maximum number of tool call iterations ({self.max_iterations}) "
+                f"I reached the maximum number of tool call iterations ({_max_iter}) "
                 "without completing the task. You can try breaking the task into smaller steps."
             )
 
